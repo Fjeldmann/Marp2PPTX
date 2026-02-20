@@ -106,8 +106,17 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
     parser = argparse.ArgumentParser(
-        description="""
-Process a Marp Markdown file to create a polished PPTX.
+        description="Process a Marp Markdown file to create a polished PPTX.",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    
+    # Create subparsers for commands
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    # Create the 'convert' subcommand
+    convert_parser = subparsers.add_parser(
+        "convert",
+        help="""Convert a Marp Markdown file to a polished PPTX.
 This script automates the pipeline:
 1. Preprocess Markdown to remove invisible characters.
 2. Convert Markdown to HTML using Marp CLI (runs in parallel with step 3).
@@ -117,31 +126,37 @@ This script automates the pipeline:
 """,
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument(
+    convert_parser.add_argument(
         "input_file",
         type=str,
         help='Path to the input Marp Markdown file (e.g., "sample.marp.md")',
     )
-    parser.add_argument(
+    convert_parser.add_argument(
         "-o",
         "--output",
         type=str,
         help='Path for the final output PPTX file. Defaults to "<input_file>.pptx" (e.g., "sample.marp.md.pptx").',
     )
-    parser.add_argument(
+    convert_parser.add_argument(
         "--debug",
         action="store_true",
         help="Keep the intermediate HTML and raw PPTX files for debugging.",
     )
-    parser.add_argument(
+    convert_parser.add_argument(
         "--experimental",
         action="store_true",
         help="Enable experimental styled-div rendering (disabled by default).",
     )
-    parser.add_argument(
+    convert_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose debug logging."
     )
+    
     args = parser.parse_args()
+    
+    # Check if a command was provided
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
 
     if args.verbose:
         logger.setLevel(logging.DEBUG)
