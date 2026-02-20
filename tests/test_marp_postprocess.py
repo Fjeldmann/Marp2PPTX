@@ -24,6 +24,7 @@ class mpp:
     
     # From postprocessing  
     widen_text_shapes = mpp_post.widen_text_shapes
+    merge_multiline_textboxes = mpp_post.merge_multiline_textboxes
     normalize_font_names = mpp_post.normalize_font_names
     remove_redundant_marp_white_rectangles = mpp_post.remove_redundant_marp_white_rectangles
     process_native_marp_images = mpp_post.process_native_marp_images
@@ -1104,4 +1105,144 @@ def test_preprocess_markdown_end_to_end_with_text_marp_md(tmp_path):
     
     # Additional sanity check: no U+200B should remain in the text
     assert '\u200b' not in actual_text, "Textbox should not contain invisible characters"
+
+
+# ============================================================================
+# MERGE MULTILINE TEXT BOXES TESTS
+# ============================================================================
+
+_LONG_SENTENCE = (
+    "This is a remarkably long sentence that is specifically designed to be long enough "
+    "to wrap across multiple visual lines when rendered within the default viewport "
+    "dimensions of a Marp presentation slide."
+)
+
+# Indices of the four new wrapping-sentence slides in text.marp.md (0-based):
+# slide 5 = plain text, slide 6 = h1, slide 7 = h2, slide 8 = h4
+_WRAPPING_SLIDE_INDICES = [5, 6, 7, 8]
+_WRAPPING_SLIDE_LABELS = ["plain text", "h1 header", "h2 header", "h4 header"]
+
+
+def test_merge_multiline_textboxes_merges_adjacent_boxes():
+    """Unit test: merge_multiline_textboxes should merge vertically-adjacent text boxes
+    with the same left position into a single text box."""
+    from pptx import Presentation
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+
+    # Simulate two text boxes from the same wrapped sentence:
+    # same left, adjacent tops (box B starts right below box A).
+    left = mpp.Cm(1).emu
+    width = mpp.Cm(20).emu
+    height = mpp.Cm(1).emu
+
+    box_a = slide.shapes.add_textbox(left, mpp.Cm(2).emu, width, height)
+    box_a.text_frame.paragraphs[0].add_run().text = "First line of the sentence"
+
+    # top of box B == top of box A + height of box A  (adjacent)
+    box_b = slide.shapes.add_textbox(left, mpp.Cm(2).emu + height, width, height)
+    box_b.text_frame.paragraphs[0].add_run().text = "Second line of the sentence"
+
+    # Sanity: 2 text boxes before
+    text_boxes_before = [s for s in slide.shapes if s.shape_type == mpp.MSO_SHAPE_TYPE.TEXT_BOX]
+    assert len(text_boxes_before) == 2
+
+    removed = mpp.merge_multiline_textboxes(prs)
+    assert removed == 1, f"Expected 1 text box removed, got {removed}"
+
+    text_boxes_after = [s for s in slide.shapes if s.shape_type == mpp.MSO_SHAPE_TYPE.TEXT_BOX]
+    assert len(text_boxes_after) == 1, (
+        f"Expected 1 text box after merge, got {len(text_boxes_after)}"
+    )
+    # Both texts must be present in the merged box
+    merged_text = text_boxes_after[0].text_frame.text
+    assert "First line" in merged_text
+    assert "Second line" in merged_text
+
+
+def test_merge_multiline_textboxes_does_not_merge_separate_sentences():
+    """Unit test: text boxes with different left positions or large vertical gaps
+    should NOT be merged."""
+    from pptx import Presentation
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+
+    left_a = mpp.Cm(1).emu
+    left_b = mpp.Cm(10).emu  # different left -> should not merge
+    width = mpp.Cm(8).emu
+    height = mpp.Cm(1).emu
+
+    box_a = slide.shapes.add_textbox(left_a, mpp.Cm(2).emu, width, height)
+    box_a.text_frame.paragraphs[0].add_run().text = "Box A"
+
+    box_b = slide.shapes.add_textbox(left_b, mpp.Cm(2).emu + height, width, height)
+    box_b.text_frame.paragraphs[0].add_run().text = "Box B"
+
+    removed = mpp.merge_multiline_textboxes(prs)
+    assert removed == 0, "Boxes with different left should not be merged"
+
+    text_boxes = [s for s in slide.shapes if s.shape_type == mpp.MSO_SHAPE_TYPE.TEXT_BOX]
+    assert len(text_boxes) == 2
+
+
+def test_merge_multiline_textboxes_text_marp_md(tmp_path):
+    """End-to-end test: process_pptx_html (which calls merge_multiline_textboxes)
+    should consolidate each wrapped long sentence in the 4 new slides of
+    resources/text.marp.md into exactly one text box per slide."""
+    from pathlib import Path
+    from pptx import Presentation
+
+    md_file = Path(__file__).parent.parent / "resources" / "text.marp.md"
+    assert md_file.exists(), f"Test file {md_file} not found"
+
+    html_file = tmp_path / "text.marp.md.html"
+    raw_pptx_file = tmp_path / "text.marp.md_raw.pptx"
+    out_pptx_file = tmp_path / "text.marp.md.pptx"
+
+    try:
+        from marp2pptx.marp_convert import marp_generate_in_parallel
+        marp_generate_in_parallel(md_file, html_file, raw_pptx_file)
+    except Exception as e:
+        print(f"Skipping test: marp CLI not available ({e})")
+        return
+
+    assert raw_pptx_file.exists(), "Marp should have generated a raw PPTX"
+
+    # Apply post-processing (includes merge_multiline_textboxes)
+    mpp.process_pptx_html(
+        html_file, raw_pptx_file, out_pptx_file,
+        save_rendered_divs=False, run_styled_divs=False,
+    )
+
+    prs = Presentation(str(out_pptx_file))
+
+    for slide_idx, label in zip(_WRAPPING_SLIDE_INDICES, _WRAPPING_SLIDE_LABELS):
+        slide = prs.slides[slide_idx]
+        text_boxes = [
+            s for s in slide.shapes
+            if s.shape_type == mpp.MSO_SHAPE_TYPE.TEXT_BOX
+            and not getattr(s, "is_placeholder", False)
+            and getattr(s, "has_text_frame", False)
+            and s.has_text_frame
+            and s.text_frame.text.strip()
+        ]
+        count = len(text_boxes)
+        print(
+            f"Slide {slide_idx + 1} ({label}): {count} non-empty text box(es) after merging"
+        )
+        assert count == 1, (
+            f"Slide {slide_idx + 1} ({label}): expected 1 text box after merging the "
+            f"wrapped long sentence, but found {count}. "
+            f"Text boxes: {[s.text_frame.text[:60] for s in text_boxes]}"
+        )
+        # Verify the sentence text is present
+        merged_text = text_boxes[0].text_frame.text
+        # The sentence key words should all be present
+        assert "remarkably long sentence" in merged_text, (
+            f"Slide {slide_idx + 1} ({label}): merged text does not contain expected sentence. "
+            f"Got: {repr(merged_text[:120])}"
+        )
+
 

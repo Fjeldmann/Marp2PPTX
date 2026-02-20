@@ -42,3 +42,19 @@ This heading has no issues with rendering and wrapping
 
 <!-- Bug: The text above contains two U+200b invisible characters, causing it to render as three separate textboxes instead of one textbox -->
 
+---
+
+This is a remarkably long sentence that is specifically designed to be long enough to wrap across multiple visual lines when rendered within the default viewport dimensions of a Marp presentation slide.
+
+---
+
+# This is a remarkably long sentence that is specifically designed to be long enough to wrap across multiple visual lines when rendered within the default viewport dimensions of a Marp presentation slide.
+
+---
+
+## This is a remarkably long sentence that is specifically designed to be long enough to wrap across multiple visual lines when rendered within the default viewport dimensions of a Marp presentation slide.
+
+---
+
+#### This is a remarkably long sentence that is specifically designed to be long enough to wrap across multiple visual lines when rendered within the default viewport dimensions of a Marp presentation slide.
+

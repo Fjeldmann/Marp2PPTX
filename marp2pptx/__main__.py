@@ -20,6 +20,7 @@ from .preprocessing import (
 from .postprocessing import (
     parse_marp_html,
     widen_text_shapes,
+    merge_multiline_textboxes,
     normalize_font_names,
     remove_redundant_marp_white_rectangles,
     process_native_marp_images,
@@ -202,6 +203,16 @@ def process_pptx_html(
         prs=prs,
         slides_data=slides_data,
     )
+    # Merge consecutive text boxes from the same wrapped sentence into one text box.
+    # Marp CLI via LibreOffice splits long sentences that wrap across multiple visual
+    # lines into separate text boxes (one per line). This step reunifies them so the
+    # exported PPTX is easier to edit.
+    try:
+        merged = merge_multiline_textboxes(prs)
+        logger.info("Merged %d split text box(es) into their parent sentence boxes", merged)
+    except Exception:
+        logger.debug("process_pptx_html: merge_multiline_textboxes failed", exc_info=True)
+
     # Widen text boxes to avoid wrapping issues in some viewers (extracted to helper).
     widen_text_shapes(prs=prs, extra_width_cm=.7)
 
