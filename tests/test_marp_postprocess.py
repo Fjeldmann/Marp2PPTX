@@ -479,7 +479,6 @@ def test_process_native_marp_images_handles_percentage_auto(tmp_path):
     
     # Get slide dimensions
     slide_width = prs.slide_width
-    slide_height = prs.slide_height
 
     # Test '90% auto' (which is what Marp generates for w:90% or width:90%)
     slides_data = [
@@ -519,7 +518,7 @@ def test_process_native_marp_images_handles_percentage_auto(tmp_path):
     
     # Image should be centered horizontally
     expected_left = (slide_width - expected_width) // 2
-    assert abs(pic.left - expected_left) < 100, f"Image should be centered horizontally"
+    assert abs(pic.left - expected_left) < 100, "Image should be centered horizontally"
 
 
 def test_render_div_as_image_handles_background_image_on_div(tmp_path):

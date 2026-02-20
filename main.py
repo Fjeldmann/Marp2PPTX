@@ -30,6 +30,24 @@ from src.postprocessing import (
 logger = logging.getLogger(__name__)
 
 
+def open_pptx_file(pptx_path: Path) -> None:
+    """
+    Open a PPTX file in the default viewer.
+    """
+    try:
+        # Use os.startfile on Windows, open on macOS, xdg-open on Linux
+        if sys.platform == "win32":
+            os.startfile(str(pptx_path))
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(pptx_path)], check=True)
+        else:
+            subprocess.run(["xdg-open", str(pptx_path)], check=True)
+        
+        logger.info(f"Opening PPTX file: {pptx_path}")
+    except Exception as e:
+        logger.error(f"Failed to open PPTX file: {e}")
+
+
 def convert_command(args) -> None:
     """
     Execute the convert command to transform a Marp Markdown file to PPTX.
@@ -49,6 +67,7 @@ def convert_command(args) -> None:
 
     # Include output files in cleanup list
     intermediate_files = [preprocessed_md_path, html_path, raw_pptx_path]
+    conversion_successful = False
 
     try:
         # --- Step 1: Preprocess Markdown ---
@@ -70,6 +89,7 @@ def convert_command(args) -> None:
             run_styled_divs=args.experimental,
         )
         logger.info(f"Successfully created final PPTX: {final_pptx_path}")
+        conversion_successful = True
 
     except FileNotFoundError:
         logger.error(
@@ -100,13 +120,17 @@ def convert_command(args) -> None:
             logger.info("Cleanup complete.")
         else:
             logger.info("Intermediate files kept as requested.")
+    
+    # Opening PPTX after the entire process is complete
+    if conversion_successful and args.open_pptx:
+        open_pptx_file(final_pptx_path)
 
 
 def cleanup_command(args) -> None:
     """
     Execute the clean-up command to remove debug files.
     """
-    input_md_file = Path(args.input_file)
+    Path(args.input_file)
     
     # Define debug file paths
     preprocessed_md_path = Path(f"{args.input_file}-m2p.preprocessed.marp.md")
@@ -143,19 +167,7 @@ def open_pptx_command(args) -> None:
         logger.error(f"PPTX file not found: {pptx_path}")
         sys.exit(1)
     
-    try:
-        # Use os.startfile on Windows, open on macOS, xdg-open on Linux
-        if sys.platform == "win32":
-            os.startfile(str(pptx_path))
-        elif sys.platform == "darwin":
-            subprocess.run(["open", str(pptx_path)], check=True)
-        else:
-            subprocess.run(["xdg-open", str(pptx_path)], check=True)
-        
-        logger.info(f"Opening PPTX file: {pptx_path}")
-    except Exception as e:
-        logger.error(f"Failed to open PPTX file: {e}")
-        sys.exit(1)
+    open_pptx_file(pptx_path)
 
 
 def process_pptx_html(
@@ -277,6 +289,11 @@ This script automates the pipeline:
     )
     convert_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose debug logging."
+    )
+    convert_parser.add_argument(
+        "--open-pptx",
+        action="store_true",
+        help="Open the generated PPTX file in the default viewer after successful conversion.",
     )
     
     # Create the 'clean-up' subcommand
