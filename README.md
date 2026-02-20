@@ -1,143 +1,107 @@
-### Marp PPTX Post-Processing: Status & Next Steps
+# Marp2PPTX: Enhanced Marp to PowerPoint Conversion
 
-#### 1. Marp HTML Structure (Key Concepts)
+## What is Marp2PPTX?
 
-**Slides:**
-- Each slide is represented by a `<svg data-marpit-svg ...>` element.
-- Inside each SVG, there are one or more layers, each as a `<foreignObject>` with width/height attributes.
-- Each `<foreignObject>` contains a `<section>` element, which holds the content for that layer.
+Marp2PPTX is a Python package designed to convert Marp Markdown files into polished, editable PowerPoint presentations. While Marp's own PowerPoint export tool is functional, it has several limitations and issues, such as improper font handling, unnecessary background objects, and fragmented text boxes. Marp2PPTX addresses these issues, ensuring that the exported presentations are clean, professional, and ready for further editing.
 
-**Headers:**
-- If a slide has a header, a `<header>` element is placed under the `<section>` element.
-- Split background images are never placed in the header.
+## Why Use Marp2PPTX?
 
-**Marpit Advanced Backgrounds:**
-- Advanced backgrounds (true and split) are always placed in a `<div data-marpit-advanced-background-container="true">`.
-- This div can contain one or more `<figure>` elements, each with a background image.
-- The direction (horizontal/vertical) is set by `data-marpit-advanced-background-direction`.
-- Split backgrounds are indicated by attributes like `data-marpit-advanced-background-split` on the `<section>`.
+Marp2PPTX improves upon Marp's default PowerPoint export by:
+- Fixing font rendering issues (e.g., ensuring proper handling of `Segoe UI` font).
+- Removing unnecessary background objects that bloat the file size.
+- Combining fragmented text boxes into cohesive units.
+- Respecting slide margins to prevent text overflow.
+- Accurately replicating Marp's advanced background image syntax.
 
-#### 2. What We're Trying to Achieve
+This tool is ideal for users who rely on Marp for Markdown-based slide creation but need high-quality, editable PowerPoint files for professional use.
 
-We want to post-process a Marp-exported PowerPoint (`.pptx`) so that all background images specified with Marp’s advanced image syntax are visually correct in the exported `.pptx`. This includes:
+## How to Use Marp2PPTX
 
-- **True backgrounds** (`![bg](...)`): Fill the slide, appear behind content, and match Marp’s CSS background-size/position logic (cover, contain, auto, etc.).
-- **Multiple backgrounds** (`![bg](...)` x N, with `horizontal`/`vertical`): Stack images in the correct order and direction, matching Marp’s advanced backgrounds.
-   - **Split backgrounds** (`![bg left]`, `![bg right]`, `![bg left:33%]`, etc.): Place the image as a foreground element in a defined region (not as a slide-wide background), shrinking the content area as Marp does. Only `left` and `right` split directions are supported (not `top` or `bottom`).
-- **Cropping and placement**: All cropping, scaling, and placement (e.g., `right:35%`, `left:38% 70%`, `w:100% h:50%`) should visually match Marp’s HTML/PDF output.
+### Prerequisites
 
-Reference: [Marpit image syntax documentation](https://marpit.marp.app/image-syntax)
+Before using Marp2PPTX, ensure you have the following installed:
 
-----
+1. **Python 3.10 or higher** or **uv**: Required to run the Marp2PPTX package.
+2. [**Marp CLI**](https://github.com/marp-team/marp-cli): The Marp command-line tool is used to generate intermediate HTML files from Markdown. Install it via npm:
+   ```bash
+   npm install -g @marp-team/marp-cli
+   ```
+3. [**LibreOffice**](https://www.libreoffice.org/download/download-libreoffice/): Mandatory for the Marp CLI to create editable PowerPoint files. Ensure LibreOffice is installed and accessible from the command line.
 
-#### 3. What We've Done So Far
+## Getting Started<a id="getting-started"></a>
 
-- **HTML Parsing:**
-   - The script parses Marp HTML output, extracting slide backgrounds, split info, image URLs, and layout instructions, by walking the SVG/foreignObject/section/container/figure structure.
-   - It builds a slide model for PPTX generation, replacing the old markdown/image logic.
+### Installation
 
-- **True Backgrounds & Multiple Backgrounds:**
-   - Images fill the slide or are stacked horizontally/vertically, matching Marp's stacking logic.
+Marp2PPTX is available as [`marp2pptx`](https://pypi.org/project/marp2pptx/) on PyPI. 
 
-- **Advanced Background Scaling:**
-   - Implemented full support for Marp's `background-size` property, parsed from the generated HTML.
-   - **Supported keywords**: `cover` (fills the area, cropping if necessary), `contain` and `fit` (scales to fit within the area), `auto` (uses original image size), and percentage values (e.g., `50%`, which scales the image relative to the container).
+Invoke Marp2PPTX directly with [`uvx`](https://docs.astral.sh/uv/):
 
-- **Split Backgrounds:**
-   - Split backgrounds (left, right, with percentage) are placed in the correct region and cropped to fill only the split space. Only `left` and `right` split directions are supported.
-   - Multiple images in a split region are distributed equally within the split space (always horizontally), matching Marp's stacking logic.
-
-- **Debugging and Logging:**
-   - Extensive debug logging shows all image shapes, sizes, and the matching process for troubleshooting.
-
-- **Robust Image Mapping**: Refactored the processing logic to map all images from the Marp HTML (including headers, content, and backgrounds) one-to-one with the picture shapes in the PPTX slide. This ensures that transformations are applied *only* to the correct background shapes, preventing unintended modifications to other images on the slide.
-
-----
-
-### 4. CLI & Pipeline Automation
-
-The script has been refactored into a full command-line interface to automate the entire Marp to post-processed PPTX pipeline.
-
-- **End-to-End Automation**: The script now orchestrates the three main steps of the conversion process:
-    1.  **HTML Generation**: It calls `npx @marp-team/marp-cli` to convert the source Markdown file into an HTML file.
-    2.  **Initial PPTX Generation**: It uses the same CLI tool to create a raw, editable PPTX file (`*_raw.pptx`).
-    3.  **Post-Processing**: It runs the existing background image processing logic on the generated HTML and raw PPTX files.
-- **File Management**:
-    - **Smart Naming**: Automatically creates an intermediate `_raw.pptx` file and saves the final output as `<input_name>.pptx`.
-    - **Automatic Cleanup**: Deletes the intermediate HTML and `_raw.pptx` files by default to keep the workspace clean.
-    - **Keep Intermediates**: A `--debug` flag is available to prevent cleanup for debugging purposes.
-- **Improved Usability**:
-    - **CLI Arguments**: The script now uses `argparse` for robust handling of command-line arguments, including the input file, output file, and other options.
-    - **Help Documentation**: A `--help` command provides clear instructions on how to use the script and its available options.
-    - **Enhanced Typing**: Static typing has been improved throughout the codebase for better maintainability and reliability.
-
-----
-
-### 5. Testing
-
-The new CLI simplifies testing significantly. To process a Marp Markdown file, run the script with the input file path.
-
-Set the name of the Marp markdown file:
-```powershell
-$MARP_MARKDOWN_FILE = "sample.marp.md"
+```shell
+uvx marp2pptx --help
+uvx marp2pptx .\example.marp.md --open-pptx
 ```
 
-Run the end-to-end processing pipeline with a single command:
-```powershell
-uv run marp_pptx_postprocess.py ./${MARP_MARKDOWN_FILE}
+Or install Marp2PPTX with `uv` (recommended), `pip`, or `pipx`:
+
+```shell
+# with uv
+uv tool install marp2pptx # Install Marp2PPTX globally.
+uv add marp2pptx # Add Marp2PPTX to the current project.
+
+# with pip
+pip install marp2pptx
+
+# with pipx
+pipx install marp2pptx
 ```
 
-The script will handle the intermediate steps and produce a final, post-processed PPTX file named `sample.marp.pptx`.
+### Usage
 
-To inspect the final output:
-```powershell
-explorer "${MARP_MARKDOWN_FILE}.pptx"
+1. Prepare your Marp Markdown file (e.g., `example.marp.md`).
+2. Run the Marp2PPTX pipeline:
+   ```shell
+   marp2pptx example.marp.md --open-pptx
+   ```
+3. The tool will generate the following file:
+   - `example-m2p.pptx`: Final, post-processed PowerPoint file.
+
+### Debugging
+
+To keep intermediate files for debugging, use the `--debug` flag:
+```shell
+marp2pptx example.marp.md --debug
 ```
-
-To run the pipeline and keep the intermediate files for debugging:
-```powershell
-uv run marp_pptx_postprocess.py ./${MARP_MARKDOWN_FILE} --debug
-```
-
-This will leave the following files for inspection:
-- `${MARP_MARKDOWN_FILE}.html`
-- `${MARP_MARKDOWN_FILE}_raw.pptx`
-- `${MARP_MARKDOWN_FILE}.pptx` (final output)
-
-----
-
-### 6. Next Steps (Advanced Placement)
-
-#### Recent Progress
-- Implemented a fix to widen all text boxes by 4cm (1133 pixels) to prevent unwanted text wrapping in headings when viewed in LibreOffice.
-- This adjustment ensures that headings display correctly without wrapping issues.
-
-The next major step is to handle explicit `width` and `height` parameters for background images, which are specified in the markdown but not always available in the final HTML `background-size` property.
-
-- **Parameters to Support:**
-    - **Explicit `width` and `height`**: Keywords like `width: 300px` or `h: 50%`.
-    - **Shorthand `w` and `h`**: e.g., `w:300px`.
-    - **Positional arguments**: e.g. `![bg 50%]` or `![bg 300px 200px]`. The script will need to parse the original markdown to get these.
-
-- **Goal:** Correctly position and scale images that use these markdown-specific parameters.
-
-- **Content Area Shrinking:**
-    - For split backgrounds, shrink the content area as Marp does, so content is not covered by split backgrounds.
+The tool will generate additional files:
+- `example-m2p.html`: The HTML file generated by Marp CLI.
+- `example-m2p-raw.pptx`: The raw PowerPoint file generated by Marp CLI before post-processing.
 
 
-# Install and run tool
-## Run as module without installing:
-```bash
-python -m marp2pptx --help
-```
-## Install locally and run:
-```bash
+## Contributing
+
+Contributions are welcome! If you encounter issues or have suggestions for improvement, please open an issue or submit a pull request.
+
+
+
+```shell
+# Clone the repository 
+git clone https://github.com/Fjeldmann/marp2pptx.git
+
+# installing Marp2PPTX locally for development:
+cd marp2pptx
+uv sync --dev
 uv pip install -e .
-```
-```bash
+
+# run Marp2PPTX with the example file:
 marp2pptx --help
-```
-to unsinstall:
-```bash
+marp2pptx .\example.marp.md --open-pptx
+
+# run tests:
+pytest 
+
+# uninstall Marp2PPTX after development:
 uv pip uninstall marp2pptx
 ```
+
+## License<a id="license"></a>
+
+This repository is licensed under the [MIT License](LICENSE). See the LICENSE file for more details.
