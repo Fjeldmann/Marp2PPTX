@@ -63,9 +63,14 @@ def convert_command(args) -> None:
     preprocessed_md_path = Path(f"{args.input_file}-m2p.preprocessed.marp.md")
     html_path = Path(f"{args.input_file}-m2p.html")
     raw_pptx_path = Path(f"{args.input_file}-m2p_raw.pptx")
+
+    # Validate and prepare the output path
     final_pptx_path = (
         Path(args.output) if args.output else Path(f"{args.input_file}-m2p.pptx")
     )
+    if not final_pptx_path.parent.exists():
+        logger.info(f"Creating output directory: {final_pptx_path.parent}")
+        final_pptx_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Include output files in cleanup list
     intermediate_files = [preprocessed_md_path, html_path, raw_pptx_path]
@@ -100,8 +105,6 @@ def convert_command(args) -> None:
         sys.exit(1)
     except subprocess.CalledProcessError as e:
         logger.error(f"Marp CLI failed to execute. The command was: {' '.join(e.cmd)}")
-        # Stderr is not captured when streaming, so we can't print it here.
-        # The error from the subprocess itself should be visible in the console.
         sys.exit(1)
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
