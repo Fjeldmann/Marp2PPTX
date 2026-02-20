@@ -1,0 +1,7 @@
+*.pdf
+*.pptx*
+*.html
+*.pyc
+*.preprocessed.marp.md
+.~*
+.env

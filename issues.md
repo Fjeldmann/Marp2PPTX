@@ -1,0 +1,4 @@
+- [x] some text is continuing outside the slide area rather than  respecting the slide margins (kontekst-thomas-pilot.md:slide-4, slide-7) (this might be related to the font issue above)
+- [x] PowerPoint is not capturing the font `Segoe UI` from the deafault Marp theme properly. A `SegoeUI` font name appears with a warning sign in PowerPoint, when I manually change it to `Segoe UI` the font is rendered correctly. This does not seem to be an issue with LibreOffice, which renders the font correctly without any warnings. 
+- [x]  exactly three white rectangle figures matching the size of the slide, are added to each slide at the very back; like some kind of background for no reason. These objects  serve no purpose and just make the presentation file larger(kontekst-thomas-pilot.md:slide-2)
+- [x] single lines of text are split into multiple texboxes for no reason (kontekst-thomas-pilot.md:slide-2)
