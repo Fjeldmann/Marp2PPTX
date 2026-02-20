@@ -1,6 +1,6 @@
 [project]
 name = "marp2pptx"
-version = "0.1.3"
+version = "0.1.4"
 description = "Convert Marp Markdown files to polished PPTX presentations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,12 +20,12 @@ packages = ["marp2pptx"]
 marp2pptx = "marp2pptx.__main__:main"
 
 [tool.uv]
-# link-mode = "copy"
 cache-dir = ".uv-cache"
 
 
 [dependency-groups]
 dev = [
+    "python-dotenv>=1.2.1",
     "ruff>=0.15.2",
     "ty>=0.0.17",
 ]
